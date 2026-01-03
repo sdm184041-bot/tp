@@ -1,0 +1,37 @@
+-- SERVICES
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+-- PLAYER
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+-- =========================
+-- 🔧 SETTINGS (CHANGE THESE)
+-- =========================
+local TELEPORT_KEY = Enum.KeyCode.X -- ← change this anytime
+local RETURN_DELAY = 1 -- seconds
+-- =========================
+
+local busy = false
+
+local function teleportAndReturn()
+    if busy then return end
+    busy = true
+
+    local savedCFrame = hrp.CFrame
+
+    task.wait(RETURN_DELAY)
+
+    hrp.CFrame = savedCFrame
+    busy = false
+end
+
+-- KEYBIND LISTENER
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == TELEPORT_KEY then
+        teleportAndReturn()
+    end
+end)
