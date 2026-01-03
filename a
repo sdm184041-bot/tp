@@ -2,88 +2,53 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local GuiService = game:GetService("GuiService")
 
--- PLAYER
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- =========================
--- 🔧 SETTINGS (CHANGE THESE)
+-- SETTINGS
 -- =========================
 local TELEPORT_KEY = Enum.KeyCode.X
 local RETURN_DELAY = 1
-local TELEPORT_OFFSET = Vector3.new(0, 0, -2) -- stand slightly in front
+local OFFSET = CFrame.new(0, 0, -2)
 -- =========================
 
 local busy = false
 
--- get character safely
-local function getCharacter()
+-- get HRP safely
+local function getHRP()
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    return char, char:WaitForChild("HumanoidRootPart")
+    return char:WaitForChild("HumanoidRootPart"), char:WaitForChild("Humanoid")
 end
 
--- find closest player to mouse
+-- get closest player to cursor (FIXED)
 local function getClosestPlayerToCursor()
-    local closestPlayer = nil
-    local shortestDistance = math.huge
+    local closest, shortest = nil, math.huge
+    local mousePos = UserInputService:GetMouseLocation()
+    local inset = GuiService:GetGuiInset()
+    mousePos -= inset
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
                 local screenPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
                 if onScreen then
-                    local mousePos = UserInputService:GetMouseLocation()
-                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-
-                    if distance < shortestDistance then
-                        shortestDistance = distance
-                        closestPlayer = player
+                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if dist < shortest then
+                        shortest = dist
+                        closest = hrp
                     end
                 end
             end
         end
     end
 
-    return closestPlayer
+    return closest
 end
 
--- teleport logic
-local function teleportToPlayerAndBack()
-    if busy then return end
-    busy = true
-
-    local char, hrp = getCharacter()
-    local savedCFrame = hrp.CFrame
-
-    local targetPlayer = getClosestPlayerToCursor()
-    if not targetPlayer or not targetPlayer.Character then
-        busy = false
-        return
-    end
-
-    local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not targetHRP then
-        busy = false
-        return
-    end
-
-    -- teleport to target
-    hrp.CFrame = targetHRP.CFrame * CFrame.new(TELEPORT_OFFSET)
-
-    -- wait
-    task.wait(RETURN_DELAY)
-
-    -- teleport back
-    hrp.CFrame = savedCFrame
-    busy = false
-end
-
--- keybind listener
-UserInputService.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if input.KeyCode == TELEPORT_KEY then
-        teleportToPlayerAndBack()
-    end
-end)
+-- FORCE teleport for 1 frame
+local function forceCFrame(hrp, cf)
+    RunService:BindToRenderStep("ForceTP", Enum.RenderPriority.Character.Value + 1, function()
